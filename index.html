@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>XeinStore - Digital Game Codes</title>
+<style>
+* { box-sizing: border-box; margin:0; padding:0; }
+body { font-family:'Segoe UI',system-ui,sans-serif; background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); min-height:100vh; color:#222; }
+.header { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding:1rem 0; box-shadow:0 2px 20px rgba(0,0,0,0.1); position:sticky; top:0; z-index:100; }
+.nav { max-width:1200px; margin:0 auto; display:flex; justify-content:space-between; align-items:center; padding:0 2rem; }
+.logo { font-size:1.6rem; font-weight:700; background:linear-gradient(45deg,#667eea,#764ba2); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.cart-btn { background:#667eea; color:#fff; border:none; padding:.6rem 1rem; border-radius:20px; cursor:pointer; font-weight:600; display:flex; gap:.5rem; align-items:center;}
+.cart-count { background:#ff4757; color:white; border-radius:50%; padding:.15rem .45rem; font-size:.8rem; }
+.container { max-width:1200px; margin:1.5rem auto; padding:1rem; }
+.hero { text-align:center; color:white; margin-bottom:1.5rem; }
+.hero h1 { font-size:2.4rem; text-shadow:2px 2px 4px rgba(0,0,0,0.25); margin-bottom:.3rem; }
+.products-grid { display:grid; grid-template-columns: repeat(auto-fill,minmax(280px,1fr)); gap:1.25rem; }
+.product-card { background: rgba(255,255,255,0.95); border-radius:12px; overflow:hidden; box-shadow:0 8px 25px rgba(0,0,0,0.08); transition:transform .18s; }
+.product-card:hover { transform: translateY(-6px); }
+.product-image { height:150px; display:flex; align-items:center; justify-content:center; font-size:3rem; color:white; background: linear-gradient(45deg,#667eea,#764ba2); }
+.product-info { padding:1rem; }
+.product-title { font-weight:700; color:#2d3748; margin-bottom:.35rem; }
+.product-platform { color:#667eea; margin-bottom:.6rem; }
+.duration-selector select { width:100%; padding:.45rem; border-radius:6px; border:1px solid #e6eef8; margin-bottom:.5rem; }
+.duration-price { color:#667eea; font-weight:700; margin-bottom:.6rem; }
+.add-to-cart { width:100%; padding:.6rem; border-radius:8px; background:#667eea; color:white; border:none; cursor:pointer; font-weight:700; }
+.checkout-btn { width:100%; padding:1rem; border-radius:10px; background:#00d4aa; color:white; border:none; font-weight:800; cursor:pointer; margin-top:.8rem; }
+
+.view { display:none; }
+.view.active { display:block; }
+
+/* Recent purchase notification */
+.notification { position: fixed; bottom: 20px; left:20px; background: #00d4aa; color: white; padding: 0.6rem 1rem; border-radius: 8px; z-index:10000; font-size:.95rem; }
+</style>
+</head>
+<body>
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">🎮 XeinStore</div>
+        <div style="display:flex; gap:.6rem; align-items:center;">
+            <button class="cart-btn" onclick="showView('checkout')">Cart <span class="cart-count" id="cart-count">0</span></button>
+        </div>
+    </nav>
+</header>
+
+<main class="container">
+
+    <!-- STORE VIEW -->
+    <div id="store-view" class="view active">
+        <div class="hero">
+            <h1>Digital Game Codes</h1>
+            <p>Instant delivery • USDT (TRC20) • Best prices</p>
+        </div>
+        <div class="products-grid" id="products-grid"></div>
+    </div>
+
+    <!-- CHECKOUT VIEW -->
+    <div id="checkout-view" class="view">
+        <h2>Checkout</h2>
+        <div id="cart-items"></div>
+        <p><strong>Total:</strong> $<span id="cart-total">0</span> USDT</p>
+        <p><strong>Wallet Address:</strong> TEwKbkNdXqvNUG951nYTCRF6UjLGBn7pqc</p>
+        <p><strong>NOTE:</strong> Please be reminded to screenshot your crypto payment</p>
+        <label>Telegram Username:</label>
+        <input type="text" id="telegram-username" placeholder="@username123" style="width:100%;padding:.5rem;margin:.5rem 0;border-radius:6px;border:1px solid #ccc;"/>
+        <button class="checkout-btn" onclick="handlePayment()">I Paid</button>
+        <button class="checkout-btn" style="background:#667eea;margin-top:.5rem;" onclick="showView('store')">Back to Store</button>
+    </div>
+
+    <!-- RECEIPT VIEW -->
+    <div id="receipt-view" class="view">
+        <h2>Receipt</h2>
+        <div id="receipt-content"></div>
+        <button class="checkout-btn" onclick="downloadReceipt()">Download Receipt</button>
+        <button class="checkout-btn" style="background:#667eea;margin-top:.5rem;" onclick="showView('store')">Back to Store</button>
+    </div>
+
+</main>
+
+<div id="recent-purchase" class="notification" style="display:none;">Someone just bought a product!</div>
+
+<script>
+// ---------- PRODUCTS ----------
+const products = [
+    { id:1, title:"Xein Pubg Key", platform:"Digital Key", pricing:{"1_day":5.00,"3_days":8.00,"7_days":12.00,"30_days":23.00}, icon:"🎯" },
+    { id:2, title:"Xein Delta Force Key", platform:"Digital Key", pricing:{"1_day":4.00,"3_days":7.00,"7_days":11.00,"30_days":22.00}, icon:"⚡" }
+];
+let cart = [];
+
+// ---------- RENDER PRODUCTS ----------
+function renderProducts() {
+    const grid = document.getElementById('products-grid');
+    grid.innerHTML = '';
+    products.forEach(p => {
+        let optionsHTML = '';
+        for (const key in p.pricing) {
+            if(key==='14_days') continue; // removed if any
+            const label = key.replace(/_/g,' ').replace(/\b\w/g,l => l.toUpperCase());
+            optionsHTML += `<option value="${key}">${label} - $${p.pricing[key]}</option>`;
+        }
+        const card = document.createElement('div');
+        card.className = 'product-card';
+        card.innerHTML = `
+            <div class="product-image">${p.icon}</div>
+            <div class="product-info">
+                <div class="product-title">${p.title}</div>
+                <div class="product-platform">${p.platform}</div>
+                <div class="duration-selector">
+                    <select id="duration-${p.id}" onchange="updatePrice(${p.id})">
+                        ${optionsHTML}
+                    </select>
+                    <div class="duration-price" id="price-${p.id}">$${p.pricing["1_day"]} USDT</div>
+                </div>
+                <button class="add-to-cart" onclick="addToCart(${p.id})">Add to Cart</button>
+            </div>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+// ---------- CART FUNCTIONS ----------
+function updatePrice(productId){
+    const sel = document.getElementById(`duration-${productId}`);
+    const priceEl = document.getElementById(`price-${productId}`);
+    const p = products.find(x=>x.id===productId);
+    priceEl.textContent = `$${p.pricing[sel.value]} USDT`;
+}
+
+function addToCart(productId){
+    const p = products.find(x=>x.id===productId);
+    const sel = document.getElementById(`duration-${productId}`);
+    const selectedDuration = sel.value;
+    const price = p.pricing[selectedDuration];
+    const existing = cart.find(i=>i.id===productId && i.selectedDuration===selectedDuration);
+    if(existing) existing.quantity++;
+    else cart.push({id:productId,title:p.title,selectedDuration,durationLabel:sel.options[sel.selectedIndex].text,price,quantity:1});
+    updateCartUI();
+}
+
+function updateCartUI(){
+    const cartCount = document.getElementById('cart-count');
+    const cartItemsEl = document.getElementById('cart-items');
+    const total = cart.reduce((s,i)=>s+i.price*i.quantity,0);
+    cartCount.textContent = cart.reduce((s,i)=>s+i.quantity,0);
+    if(cart.length===0){
+        cartItemsEl.innerHTML = '<p>Cart is empty</p>';
+        document.getElementById('cart-total').textContent = '0';
+    }else{
+        cartItemsEl.innerHTML = cart.map(i=>`<div>${i.title} (${i.durationLabel}) x${i.quantity} - $${(i.price*i.quantity).toFixed(2)}</div>`).join('');
+        document.getElementById('cart-total').textContent = total.toFixed(2);
+    }
+}
+
+function showView(view){
+    ['store','checkout','receipt'].forEach(v=>document.getElementById(v+'-view').classList.remove('active'));
+    document.getElementById(view+'-view').classList.add('active');
+}
+
+// ---------- PAYMENT ----------
+function handlePayment(){
+    const username = document.getElementById('telegram-username').value.trim();
+    if(!username){ alert('Please enter your Telegram username'); return; }
+    if(cart.length===0){ alert('Cart is empty'); return; }
+
+    const orderId = 'XSN'+Date.now();
+    const total = cart.reduce((s,i)=>s+i.price*i.quantity,0);
+    window.currentReceipt = { orderId, telegramUsername: username, items:[...cart], total, wallet: 'TEwKbkNdXqvNUG951nYTCRF6UjLGBn7pqc', status: 'Awaiting Verification' };
+    showView('receipt');
+    renderReceipt();
+    cart = [];
+    updateCartUI();
+}
+// ---------- RECEIPT ----------
+function renderReceipt(){
+    const r = window.currentReceipt;
+    const el = document.getElementById('receipt-content');
+    let itemsHTML = r.items.map(i=>`<li>${i.title} (${i.durationLabel}) x${i.quantity} - $${(i.price*i.quantity).toFixed(2)}</li>`).join('');
+    el.innerHTML = `
+        <p><strong>Order ID:</strong> ${r.orderId}</p>
+        <p><strong>Telegram Username:</strong> ${r.telegramUsername}</p>
+        <ul>${itemsHTML}</ul>
+        <p><strong>Total Paid:</strong> $${r.total.toFixed(2)} USDT</p>
+        <p><strong>Wallet Address:</strong> ${r.wallet}</p>
+        <p><strong>Status:</strong> ${r.status}</p>
+        <p style="margin-top:1rem; font-weight:bold; color:#ff4757;">NOTE: Please send BOTH screenshots of your crypto payment and your receipt to @cocomelonqueen</p>
+    `;
+}
+
+// ---------- DOWNLOAD RECEIPT ----------
+function downloadReceipt(){
+    const r = window.currentReceipt;
+    if(!r) return alert('No receipt available');
+    const blob = new Blob([document.getElementById('receipt-content').innerText], {type:'text/plain'});
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${r.orderId}_receipt.txt`;
+    link.click();
+}
+
+// ---------- RECENT PURCHASE NOTIFICATIONS ----------
+const recentUsers = ['@gamerJack','@traderGirl','@playMaster','@cryptoKing','@xenon123','@bluebird99','@alphaOmega','@darkNinja','@pixelHero','@neoQuantum'];
+function randomNotification(){
+    if(Math.random()<0.5) return; // Random chance to not show every time
+    const username = recentUsers[Math.floor(Math.random()*recentUsers.length)];
+    const product = products[Math.floor(Math.random()*products.length)];
+    const durations = Object.keys(product.pricing).filter(d=>d!=='14_days');
+    const duration = durations[Math.floor(Math.random()*durations.length)].replace(/_/g,' ');
+    const hoursAgo = Math.floor(Math.random()*12)+1;
+    const minutesAgo = Math.floor(Math.random()*59)+1;
+    const timeAgo = hoursAgo>0?`${hoursAgo}h ${minutesAgo}m ago`:`${minutesAgo}m ago`;
+    const notif = document.getElementById('recent-purchase');
+    notif.textContent = `${username} just bought ${product.title} (${duration}) - ${timeAgo}`;
+    notif.style.display='block';
+    setTimeout(()=>{ notif.style.display='none'; },8000);
+}
+
+// Trigger notification randomly every 15-35 seconds
+setInterval(()=>{
+    randomNotification();
+}, 15000 + Math.random()*20000);
+
+// ---------- INITIALIZE ----------
+renderProducts();
+updateCartUI();
